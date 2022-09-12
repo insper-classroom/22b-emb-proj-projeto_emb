@@ -32,16 +32,17 @@ Spotify
 botao de play/pause para pausar a musica.
 
 ### Comandos/ Feedbacks (2 pts)
-Play/Paulse, Passar para proxima Musica, recomecar ou voltar a musica anterior, aumentar/diminir o volume
+On/Off, Play/Paulse, Passar para proxima Musica, recomecar ou voltar a musica anterior, aumentar/diminir o volume
  
 Quais os feedbacks que seu controle vai fornecer ao usuário?
-Um led que fica aceso enquanto o controle esta liga com intensidade do volume e a cada botao clicado o led pisca
+Um led que fica aceso enquanto o controle esta ligado com intensidade do volume e a cada botao clicado o led pisca
 
 
 ## In/OUT (3 pts)
 
 Para cada Comando/ Feedback do seu controle, associe qual sensores/ atuadores pretende utilizar? Faca em formato de lista, exemplo:
 
+- On/OFF: Push botao amarelo
 - Play/Pause: Push botao vermelho
 - Avanca música: Push botao verde
 - recomeca a musica: Push botao azul
