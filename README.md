@@ -50,4 +50,4 @@ Para cada Comando/ Feedback do seu controle, associe qual sensores/ atuadores pr
 
 ### Design (2 pts)
 
-![]()
+![](Controle)
