@@ -45,7 +45,7 @@ Para cada Comando/ Feedback do seu controle, associe qual sensores/ atuadores pr
 - Play/Pause: Push botao vermelho
 - Avanca música: Push botao verde
 - recomeca a musica: Push botao azul
-- Voltar uma musica: segurar botao azul
+- Voltar uma musica: Push 2 vezes botao azul
 
 ### Design (2 pts)
 
