@@ -7,7 +7,7 @@ Desenvolvendo um controle remoto.
 ### Integrantes
 
 - Ricardo Israel
-- Nome2
+- Rodrigo Mattar
 
 ### Ideia
 
