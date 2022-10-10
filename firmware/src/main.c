@@ -82,6 +82,8 @@ extern void xPortSysTickHandler(void);
 /* constants                                                            */
 /************************************************************************/
 QueueHandle_t xQueueBut;
+SemaphoreHandle_t xSemaphoreOnOff;
+volatile int onFlag = 0;
 
 /************************************************************************/
 /* variaveis globais                                                    */
@@ -127,22 +129,26 @@ extern void vApplicationMallocFailedHook(void) {
 void but_azul_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 1;
-	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	if(onFlag){
+		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	}
 }
 void but_verde_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 2;
-	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	if(onFlag){
+		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	}
 }
 void but_amarelo_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 3;
-	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	if(onFlag){
+		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	}
 }
 void but_vermelho_callback(void){
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	int id = 4;
-	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+	onFlag = !onFlag;
 }
 /************************************************************************/
 /* funcoes                                                              */
@@ -328,22 +334,24 @@ void task_bluetooth(void) {
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
-		if(xQueueReceive(xQueueBut, &data, 50)){
-			printf("%d\n", data);
-			// envia status botão
-			while(!usart_is_tx_ready(USART_COM)) {
-				vTaskDelay(10 / portTICK_PERIOD_MS);
-			}
-			usart_write(USART_COM, button1);
-			
-			// envia fim de pacote
-			while(!usart_is_tx_ready(USART_COM)) {
-				vTaskDelay(10 / portTICK_PERIOD_MS);
-			}
-			usart_write(USART_COM, eof);
+		if(onFlag){
+			if(xQueueReceive(xQueueBut, &data, 50)){
+				printf("%d\n", data);
+				// envia status botão
+				while(!usart_is_tx_ready(USART_COM)) {
+					vTaskDelay(10 / portTICK_PERIOD_MS);
+				}
+				usart_write(USART_COM, button1);
+				
+				// envia fim de pacote
+				while(!usart_is_tx_ready(USART_COM)) {
+					vTaskDelay(10 / portTICK_PERIOD_MS);
+				}
+				usart_write(USART_COM, eof);
 
-			// dorme por 500 ms
-			vTaskDelay(500 / portTICK_PERIOD_MS);
+				// dorme por 500 ms
+				vTaskDelay(500 / portTICK_PERIOD_MS);
+			}
 		}
 
 	}
@@ -360,6 +368,10 @@ int main(void) {
 
 	configure_console();
 	
+	xSemaphoreOnOff = xSemaphoreCreateBinary();
+	if(xSemaphoreOnOff == NULL){
+		printf("Falha ao criar semaforo on off");
+	}
 	
 	xQueueBut = xQueueCreate(32, sizeof(int));
 	if(xQueueBut==NULL){
