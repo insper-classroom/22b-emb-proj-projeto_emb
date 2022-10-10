@@ -28,22 +28,22 @@
 #define BUT_AZUL_PIO      PIOA
 #define BUT_AZUL_PIO_ID   ID_PIOA
 #define BUT_AZUL_IDX      4
-#define BUT_AZUL_IDX_MASK (1 << BUT_IDX)
+#define BUT_AZUL_IDX_MASK (1 << BUT_AZUL_IDX)
 
 #define BUT_VERDE_PIO      PIOA
 #define BUT_VERDE_PIO_ID   ID_PIOA
 #define BUT_VERDE_IDX      3
-#define BUT_VERDE_IDX_MASK (1 << BUT_IDX)
+#define BUT_VERDE_IDX_MASK (1 << BUT_VERDE_IDX)
 
 #define BUT_AMARELO_PIO      PIOA
 #define BUT_AMARELO_PIO_ID   ID_PIOA
 #define BUT_AMARELO_IDX      2
-#define BUT_AMARELO_IDX_MASK (1 << BUT_IDX)
+#define BUT_AMARELO_IDX_MASK (1 << BUT_AMARELO_IDX)
 
 #define BUT_VERMELHO_PIO      PIOA
 #define BUT_VERMELHO_PIO_ID   ID_PIOA
 #define BUT_VERMELHO_IDX      19
-#define BUT_VERMELHO_IDX_MASK (1 << BUT_IDX)
+#define BUT_VERMELHO_IDX_MASK (1 << BUT_VERMELHO_IDX)
 
 
 // usart (bluetooth ou serial)
@@ -81,6 +81,7 @@ extern void xPortSysTickHandler(void);
 /************************************************************************/
 /* constants                                                            */
 /************************************************************************/
+QueueHandle_t xQueueBut;
 
 /************************************************************************/
 /* variaveis globais                                                    */
@@ -123,20 +124,97 @@ extern void vApplicationMallocFailedHook(void) {
 /************************************************************************/
 /* handlers / callbacks                                                 */
 /************************************************************************/
-
+void but_azul_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	int id = 1;
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+}
+void but_verde_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	int id = 2;
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+}
+void but_amarelo_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	int id = 3;
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+}
+void but_vermelho_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	int id = 4;
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
+}
 /************************************************************************/
 /* funcoes                                                              */
 /************************************************************************/
 
 void io_init(void) {
-
-	// Ativa PIOs
+	WDT->WDT_MR = WDT_MR_WDDIS;
+	// Ativa LEDs
 	pmc_enable_periph_clk(LED_PIO_ID);
-	pmc_enable_periph_clk(BUT_PIO_ID);
-
-	// Configura Pinos
 	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT | PIO_DEBOUNCE);
-	pio_configure(BUT_PIO, PIO_INPUT, BUT_IDX_MASK, PIO_PULLUP);
+	
+	//Config Btns
+	// Inicializa dos botoes do display;
+	pmc_enable_periph_clk(BUT_AZUL_PIO_ID);
+	pmc_enable_periph_clk(BUT_VERDE_PIO_ID);
+	pmc_enable_periph_clk(BUT_AMARELO_PIO_ID);
+	pmc_enable_periph_clk(BUT_VERMELHO_PIO_ID);
+	
+	pio_configure(BUT_AZUL_PIO, PIO_INPUT, BUT_AZUL_IDX_MASK, PIO_PULLUP | PIO_DEBOUNCE);
+	pio_configure(BUT_VERDE_PIO, PIO_INPUT, BUT_VERDE_IDX_MASK, PIO_PULLUP | PIO_DEBOUNCE);
+	pio_configure(BUT_AMARELO_PIO, PIO_INPUT, BUT_AMARELO_IDX_MASK, PIO_PULLUP | PIO_DEBOUNCE);
+	pio_configure(BUT_VERMELHO_PIO, PIO_INPUT, BUT_VERMELHO_IDX_MASK, PIO_PULLUP | PIO_DEBOUNCE);
+	
+	pio_set_debounce_filter(BUT_AZUL_PIO, BUT_AZUL_IDX_MASK, 100);
+	pio_set_debounce_filter(BUT_VERDE_PIO, BUT_VERDE_IDX_MASK, 100);
+	pio_set_debounce_filter(BUT_AMARELO_PIO, BUT_AMARELO_IDX_MASK, 100);
+	pio_set_debounce_filter(BUT_VERMELHO_PIO, BUT_VERMELHO_IDX_MASK, 100);
+	
+	pio_handler_set(BUT_AZUL_PIO,
+	BUT_AZUL_PIO_ID,
+	BUT_AZUL_IDX_MASK,
+	PIO_IT_FALL_EDGE,
+	but_azul_callback);
+	
+	pio_handler_set(BUT_VERDE_PIO,
+	BUT_VERDE_PIO_ID,
+	BUT_VERDE_IDX_MASK,
+	PIO_IT_FALL_EDGE,
+	but_verde_callback);
+	
+	pio_handler_set(BUT_AMARELO_PIO,
+	BUT_AMARELO_PIO_ID,
+	BUT_AMARELO_IDX_MASK,
+	PIO_IT_FALL_EDGE,
+	but_amarelo_callback);
+	
+	pio_handler_set(BUT_VERMELHO_PIO,
+	BUT_VERMELHO_PIO_ID,
+	BUT_VERMELHO_IDX_MASK,
+	PIO_IT_FALL_EDGE,
+	but_vermelho_callback);
+	
+	pio_enable_interrupt(BUT_AZUL_PIO, BUT_AZUL_IDX_MASK);
+	pio_enable_interrupt(BUT_VERDE_PIO, BUT_VERDE_IDX_MASK);
+	pio_enable_interrupt(BUT_AMARELO_PIO, BUT_AMARELO_IDX_MASK);
+	pio_enable_interrupt(BUT_VERMELHO_PIO, BUT_VERMELHO_IDX_MASK);
+	
+	pio_get_interrupt_status(BUT_AZUL_PIO);
+	pio_get_interrupt_status(BUT_VERDE_PIO);
+	pio_get_interrupt_status(BUT_AMARELO_PIO);
+	pio_get_interrupt_status(BUT_VERMELHO_PIO);
+	
+	
+	NVIC_EnableIRQ(BUT_AZUL_PIO_ID);
+	NVIC_SetPriority(BUT_AZUL_PIO_ID, 4); // Prioridade 4
+	NVIC_EnableIRQ(BUT_VERDE_PIO_ID);
+	NVIC_SetPriority(BUT_VERDE_PIO_ID, 4);
+	NVIC_EnableIRQ(BUT_AMARELO_PIO_ID);
+	NVIC_SetPriority(BUT_AMARELO_PIO_ID, 4);
+	NVIC_EnableIRQ(BUT_VERMELHO_PIO_ID);
+	NVIC_SetPriority(BUT_VERMELHO_PIO_ID, 4);
+	
 }
 
 static void configure_console(void) {
@@ -245,40 +323,29 @@ void task_bluetooth(void) {
 
 	char button1 = '0';
 	char eof = 'X';
+	int data;
 
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
-		if(pio_get(BUT_AZUL_PIO, PIO_INPUT, BUT_AZUL_IDX_MASK) == 0) {
-			button1 = 'B';
-		} else if(pio_get(BUT_VERDE_PIO, PIO_INPUT, BUT_VERDE_IDX_MASK) == 0) {
-			button1 = 'G';
-		}else if(pio_get(BUT_VERDE_PIO, PIO_INPUT, BUT_VERDE_IDX_MASK) == 0) {
-			button1 = 'G';
-		}
-		else if(pio_get(BUT_AMARELO_PIO, PIO_INPUT, BUT_AMARELO_IDX_MASK) == 0) {
-			button1 = 'Y';
-		}
-		else if(pio_get(BUT_VERMELHO_PIO, PIO_INPUT, BUT_VERMELHO_IDX_MASK) == 0) {
-			button1 = 'R';
-		}else{
-			button1 = '0';
+		if(xQueueReceive(xQueueBut, &data, 50)){
+			printf("%d\n", data);
+			// envia status botão
+			while(!usart_is_tx_ready(USART_COM)) {
+				vTaskDelay(10 / portTICK_PERIOD_MS);
+			}
+			usart_write(USART_COM, button1);
+			
+			// envia fim de pacote
+			while(!usart_is_tx_ready(USART_COM)) {
+				vTaskDelay(10 / portTICK_PERIOD_MS);
+			}
+			usart_write(USART_COM, eof);
+
+			// dorme por 500 ms
+			vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 
-		// envia status botão
-		while(!usart_is_tx_ready(USART_COM)) {
-			vTaskDelay(10 / portTICK_PERIOD_MS);
-		}
-		usart_write(USART_COM, button1);
-		
-		// envia fim de pacote
-		while(!usart_is_tx_ready(USART_COM)) {
-			vTaskDelay(10 / portTICK_PERIOD_MS);
-		}
-		usart_write(USART_COM, eof);
-
-		// dorme por 500 ms
-		vTaskDelay(500 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -292,6 +359,12 @@ int main(void) {
 	board_init();
 
 	configure_console();
+	
+	
+	xQueueBut = xQueueCreate(32, sizeof(int));
+	if(xQueueBut==NULL){
+		printf("Falha ao criar queue but");
+	}
 
 	/* Create task to make led blink */
 	xTaskCreate(task_bluetooth, "BLT", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
