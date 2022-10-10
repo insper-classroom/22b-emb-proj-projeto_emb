@@ -25,6 +25,27 @@
 #define BUT_IDX      11
 #define BUT_IDX_MASK (1 << BUT_IDX)
 
+#define BUT_AZUL_PIO      PIOA
+#define BUT_AZUL_PIO_ID   ID_PIOA
+#define BUT_AZUL_IDX      4
+#define BUT_AZUL_IDX_MASK (1 << BUT_IDX)
+
+#define BUT_VERDE_PIO      PIOA
+#define BUT_VERDE_PIO_ID   ID_PIOA
+#define BUT_VERDE_IDX      3
+#define BUT_VERDE_IDX_MASK (1 << BUT_IDX)
+
+#define BUT_AMARELO_PIO      PIOA
+#define BUT_AMARELO_PIO_ID   ID_PIOA
+#define BUT_AMARELO_IDX      2
+#define BUT_AMARELO_IDX_MASK (1 << BUT_IDX)
+
+#define BUT_VERMELHO_PIO      PIOA
+#define BUT_VERMELHO_PIO_ID   ID_PIOA
+#define BUT_VERMELHO_IDX      19
+#define BUT_VERMELHO_IDX_MASK (1 << BUT_IDX)
+
+
 // usart (bluetooth ou serial)
 // Descomente para enviar dados
 // pela serial debug
@@ -201,11 +222,11 @@ int hc05_init(void) {
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
 	usart_send_command(USART_COM, buffer_rx, 1000, "AT", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
-	usart_send_command(USART_COM, buffer_rx, 1000, "AT+NAMEagoravai", 100);
+	usart_send_command(USART_COM, buffer_rx, 1000, "AT+NAMESpotify", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
 	usart_send_command(USART_COM, buffer_rx, 1000, "AT", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
-	usart_send_command(USART_COM, buffer_rx, 1000, "AT+PIN0000", 100);
+	usart_send_command(USART_COM, buffer_rx, 1000, "AT+PIN6575", 100);
 }
 
 /************************************************************************/
@@ -228,9 +249,19 @@ void task_bluetooth(void) {
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
-		if(pio_get(BUT_PIO, PIO_INPUT, BUT_IDX_MASK) == 0) {
-			button1 = '1';
-		} else {
+		if(pio_get(BUT_AZUL_PIO, PIO_INPUT, BUT_AZUL_IDX_MASK) == 0) {
+			button1 = 'B';
+		} else if(pio_get(BUT_VERDE_PIO, PIO_INPUT, BUT_VERDE_IDX_MASK) == 0) {
+			button1 = 'G';
+		}else if(pio_get(BUT_VERDE_PIO, PIO_INPUT, BUT_VERDE_IDX_MASK) == 0) {
+			button1 = 'G';
+		}
+		else if(pio_get(BUT_AMARELO_PIO, PIO_INPUT, BUT_AMARELO_IDX_MASK) == 0) {
+			button1 = 'Y';
+		}
+		else if(pio_get(BUT_VERMELHO_PIO, PIO_INPUT, BUT_VERMELHO_IDX_MASK) == 0) {
+			button1 = 'R';
+		}else{
 			button1 = '0';
 		}
 
