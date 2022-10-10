@@ -45,6 +45,9 @@
 #define BUT_VERMELHO_IDX      19
 #define BUT_VERMELHO_IDX_MASK (1 << BUT_VERMELHO_IDX)
 
+#define AFEC_POT AFEC0
+#define AFEC_POT_ID ID_AFEC0
+#define AFEC_POT_CHANNEL 0 // Canal do pino PD30
 
 // usart (bluetooth ou serial)
 // Descomente para enviar dados
@@ -77,21 +80,18 @@ extern void vApplicationIdleHook(void);
 extern void vApplicationTickHook(void);
 extern void vApplicationMallocFailedHook(void);
 extern void xPortSysTickHandler(void);
+static void config_AFEC_pot(Afec *afec, uint32_t afec_id, uint32_t afec_channel,
+afec_callback_t callback);
 
-/************************************************************************/
-/* constants                                                            */
-/************************************************************************/
+TimerHandle_t xTimer;
 QueueHandle_t xQueueBut;
+QueueHandle_t xQueueADC;
 SemaphoreHandle_t xSemaphoreOnOff;
 volatile int onFlag = 0;
+typedef struct{
+	uint value;
+} adcData;
 
-/************************************************************************/
-/* variaveis globais                                                    */
-/************************************************************************/
-
-/************************************************************************/
-/* RTOS application HOOK                                                */
-/************************************************************************/
 
 /* Called if stack overflow during execution */
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,
@@ -150,9 +150,24 @@ void but_amarelo_callback(void){
 void but_vermelho_callback(void){
 	onFlag = !onFlag;
 }
-/************************************************************************/
-/* funcoes                                                              */
-/************************************************************************/
+
+static void AFEC_pot_callback(void) {
+	adcData adc;
+	adc.value = afec_channel_get_value(AFEC_POT, AFEC_POT_CHANNEL);
+	BaseType_t xHigherPriorityTaskWoken = pdTRUE;
+	xQueueSendFromISR(xQueueADC, &adc, &xHigherPriorityTaskWoken);
+}
+
+/************************/
+/* TASKS                                                                */
+/************************/
+
+void vTimerCallback(TimerHandle_t xTimer) {
+	/* Selecina canal e inicializa conversão */
+	afec_channel_enable(AFEC_POT, AFEC_POT_CHANNEL);
+	afec_start_software_conversion(AFEC_POT);
+}
+
 
 void io_init(void) {
 	WDT->WDT_MR = WDT_MR_WDDIS;
@@ -221,6 +236,51 @@ void io_init(void) {
 	NVIC_EnableIRQ(BUT_VERMELHO_PIO_ID);
 	NVIC_SetPriority(BUT_VERMELHO_PIO_ID, 4);
 	
+}
+
+static void config_AFEC_pot(Afec *afec, uint32_t afec_id, uint32_t afec_channel,
+                            afec_callback_t callback) {
+  /*************
+   * Ativa e configura AFEC
+   *************/
+  /* Ativa AFEC - 0 */
+  afec_enable(afec);
+
+  /* struct de configuracao do AFEC */
+  struct afec_config afec_cfg;
+
+  /* Carrega parametros padrao */
+  afec_get_config_defaults(&afec_cfg);
+
+  /* Configura AFEC */
+  afec_init(afec, &afec_cfg);
+
+  /* Configura trigger por software */
+  afec_set_trigger(afec, AFEC_TRIG_SW);
+
+  /* Configuracao específica do canal AFEC */
+  struct afec_ch_config afec_ch_cfg;
+  afec_ch_get_config_defaults(&afec_ch_cfg);
+  afec_ch_cfg.gain = AFEC_GAINVALUE_0;
+  afec_ch_set_config(afec, afec_channel, &afec_ch_cfg);
+
+  /*
+  * Calibracao:
+  * Because the internal ADC offset is 0x200, it should cancel it and shift
+  down to 0.
+  */
+  afec_channel_set_analog_offset(afec, afec_channel, 0x200);
+
+  /*  Configura sensor de temperatura */
+  struct afec_temp_sensor_config afec_temp_sensor_cfg;
+
+  afec_temp_sensor_get_config_defaults(&afec_temp_sensor_cfg);
+  afec_temp_sensor_set_config(afec, &afec_temp_sensor_cfg);
+
+  /* configura IRQ */
+  afec_set_callback(afec, afec_channel, callback, 1);
+  NVIC_SetPriority(afec_id, 4);
+  NVIC_EnableIRQ(afec_id);
 }
 
 static void configure_console(void) {
@@ -319,17 +379,21 @@ int hc05_init(void) {
 
 void task_bluetooth(void) {
 	printf("Task Bluetooth started \n");
-	
 	printf("Inicializando HC05 \n");
+	
 	config_usart0();
 	hc05_init();
-
-	// configura LEDs e Botões
 	io_init();
-
+	config_AFEC_pot(AFEC_POT, AFEC_POT_ID, AFEC_POT_CHANNEL, AFEC_pot_callback);
+	
+	xTimer = xTimerCreate("Timer", 100, pdTRUE, (void*)0, vTimerCallback);
+	xTimerStart(xTimer, 0);
+	
 	char button1 = '0';
 	char eof = 'X';
 	int data;
+	adcData adc;
+	
 
 	// Task não deve retornar.
 	while(1) {
@@ -353,6 +417,10 @@ void task_bluetooth(void) {
 				vTaskDelay(500 / portTICK_PERIOD_MS);
 			}
 		}
+		if(xQueueReceive(xQueueADC, &(adc), 50)){
+			printf("%d\n", adc.value);
+		}
+		
 
 	}
 }
@@ -377,6 +445,12 @@ int main(void) {
 	if(xQueueBut==NULL){
 		printf("Falha ao criar queue but");
 	}
+	
+	xQueueADC = xQueueCreate(32, sizeof(int));
+	if(xQueueADC==NULL){
+		printf("Falha ao criar queue but");
+	}
+
 
 	/* Create task to make led blink */
 	xTaskCreate(task_bluetooth, "BLT", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
