@@ -35,7 +35,7 @@ botao de play/pause para pausar a musica.
 On/Off, Play/Paulse, Passar para proxima Musica, recomecar ou voltar a musica anterior, aumentar/diminir o volume
  
 Quais os feedbacks que seu controle vai fornecer ao usuário?
-Um led que fica aceso enquanto o controle esta ligado com intensidade do volume e a cada botao clicado o led pisca
+Um led que fica aceso enquanto o controle esta ligado e a cada botao clicado o led pisca
 
 
 ## In/OUT (3 pts)
