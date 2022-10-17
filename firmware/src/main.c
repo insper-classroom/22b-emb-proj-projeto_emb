@@ -82,10 +82,12 @@ extern void vApplicationMallocFailedHook(void);
 extern void xPortSysTickHandler(void);
 static void config_AFEC_pot(Afec *afec, uint32_t afec_id, uint32_t afec_channel,
 afec_callback_t callback);
+static void task_adc(void *pvParameters);
 
 TimerHandle_t xTimer;
 QueueHandle_t xQueueBut;
 QueueHandle_t xQueueADC;
+QueueHandle_t xQueueMean;
 SemaphoreHandle_t xSemaphoreOnOff;
 volatile int onFlag = 0;
 typedef struct{
@@ -148,6 +150,11 @@ void but_amarelo_callback(void){
 	}
 }
 void but_vermelho_callback(void){
+	if(onFlag){
+		pio_set(LED_PIO, LED_IDX_MASK);
+	}else{
+		pio_clear(LED_PIO, LED_IDX_MASK);
+	}
 	onFlag = !onFlag;
 }
 
@@ -173,7 +180,8 @@ void io_init(void) {
 	WDT->WDT_MR = WDT_MR_WDDIS;
 	// Ativa LEDs
 	pmc_enable_periph_clk(LED_PIO_ID);
-	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT | PIO_DEBOUNCE);
+	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT);
+	pio_set_output(LED_PIO, LED_IDX_MASK, 0,0,0);
 	
 	//Config Btns
 	// Inicializa dos botoes do display;
@@ -377,6 +385,38 @@ int hc05_init(void) {
 /* TASKS                                                                */
 /************************************************************************/
 
+static void task_adc(void *pvParameters){
+	config_AFEC_pot(AFEC_POT, AFEC_POT_ID, AFEC_POT_CHANNEL, AFEC_pot_callback);
+	
+	xTimer = xTimerCreate("Timer", 100, pdTRUE, (void*)0, vTimerCallback);
+	xTimerStart(xTimer, 0);
+	
+	uint32_t msg = 0;
+	adcData adc;
+	int i = 0;
+	int v[] = {0,0,0,0,0,0,0,0,0,0};
+	int s;
+	int m;
+	
+	while(1){
+		if(onFlag){
+			if(xQueueReceive(xQueueADC, &(adc), 10)){ //dados recebidos do afec
+				if(i==9){
+					i=0;
+				}
+				v[i] = adc.value;
+				i++;
+				s = 0;
+				for (int j =0; j<10;j++){
+					s+= v[j];
+				}
+				m = s/10;
+				printf("Media: %d\n", m);
+			}
+		}
+	}
+}
+
 void task_bluetooth(void) {
 	printf("Task Bluetooth started \n");
 	printf("Inicializando HC05 \n");
@@ -384,28 +424,26 @@ void task_bluetooth(void) {
 	config_usart0();
 	hc05_init();
 	io_init();
-	config_AFEC_pot(AFEC_POT, AFEC_POT_ID, AFEC_POT_CHANNEL, AFEC_pot_callback);
-	
-	xTimer = xTimerCreate("Timer", 100, pdTRUE, (void*)0, vTimerCallback);
-	xTimerStart(xTimer, 0);
+	pio_set(LED_PIO, LED_IDX_MASK);
 	
 	char button1 = '0';
 	char eof = 'X';
 	int data;
-	adcData adc;
-	
 
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
-		if(onFlag){
-			if(xQueueReceive(xQueueBut, &data, 50)){
-				printf("%d\n", data);
+		if(onFlag){ //caso botao vermelho ja clicado
+			if(xQueueReceive(xQueueBut, &data, 50)){ //dados recebidos dos botoes clicados
 				// envia status botão
+				printf("data btn: %d\n", data);
+				
 				while(!usart_is_tx_ready(USART_COM)) {
 					vTaskDelay(10 / portTICK_PERIOD_MS);
 				}
-				usart_write(USART_COM, button1);
+				
+				//esses while podem ficar fora da fila?
+				usart_write(USART_COM, data);
 				
 				// envia fim de pacote
 				while(!usart_is_tx_ready(USART_COM)) {
@@ -414,14 +452,12 @@ void task_bluetooth(void) {
 				usart_write(USART_COM, eof);
 
 				// dorme por 500 ms
-				vTaskDelay(500 / portTICK_PERIOD_MS);
+				//vTaskDelay(500 / portTICK_PERIOD_MS);
+				pio_set(LED_PIO, LED_IDX_MASK);
+				delay_ms(200);
+				pio_clear(LED_PIO, LED_IDX_MASK);
 			}
 		}
-		if(xQueueReceive(xQueueADC, &(adc), 50)){
-			printf("%d\n", adc.value);
-		}
-		
-
 	}
 }
 
@@ -433,7 +469,6 @@ int main(void) {
 	/* Initialize the SAM system */
 	sysclk_init();
 	board_init();
-
 	configure_console();
 	
 	xSemaphoreOnOff = xSemaphoreCreateBinary();
@@ -450,13 +485,19 @@ int main(void) {
 	if(xQueueADC==NULL){
 		printf("Falha ao criar queue but");
 	}
+	
+	xQueueMean = xQueueCreate(32, sizeof(int));
+	if(xQueueMean==NULL){
+		printf("Falha ao criar queue media");
+	}
 
 
 	/* Create task to make led blink */
 	xTaskCreate(task_bluetooth, "BLT", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
-
+	xTaskCreate(task_adc, "ADC", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
 	/* Start the scheduler. */
 	vTaskStartScheduler();
+	
 
 	while(1){}
 

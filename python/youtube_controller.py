@@ -6,7 +6,7 @@ import logging
 
 class MyControllerMap:
     def __init__(self):
-        self.button = {'A': 'L'} # Fast forward (10 seg) pro Youtube
+        self.button = {'1': ['ctrl', 'left'], '2':'space', '3':['ctrl', 'right']} # Fast forward (10 seg) pro Youtube
 
 class SerialControllerInterface:
     # Protocolo
@@ -28,13 +28,34 @@ class SerialControllerInterface:
         data = self.ser.read()
         logging.debug("Received DATA: {}".format(data))
 
-        if data == b'1':
-            logging.info("KEYDOWN A")
-            pyautogui.keyDown(self.mapping.button['A'])
-        elif data == b'0':
-            logging.info("KEYUP A")
-            pyautogui.keyUp(self.mapping.button['A'])
+        # if data == b'1':
+        #     logging.info("KEYDOWN A")
+        #     pyautogui.keyDown(self.mapping.button['A'])
+        # elif data == b'0':
+        #     logging.info("KEYUP A")
+        #     pyautogui.keyUp(self.mapping.button['A'])
 
+        if (data == b'\x01'):
+            print("1\n")
+            logging.info("KEYDOWN Control Left")
+            pyautogui.keyDown(self.mapping.button['1'][0])
+            pyautogui.keyDown(self.mapping.button['1'][1])
+            pyautogui.keyUp(self.mapping.button['1'][0])
+            pyautogui.keyUp(self.mapping.button['1'][1])
+        elif (data == b'\x02'):
+            print("2\n")
+            logging.info("KEYDOWN Space ")
+            pyautogui.press(self.mapping.button['2'])
+        elif (data == b'\x03'):
+            print("3\n")
+            logging.info("KEYDOWN Control Right")
+            pyautogui.keyDown(self.mapping.button['3'][0])
+            pyautogui.keyDown(self.mapping.button['3'][1])
+            pyautogui.keyUp(self.mapping.button['3'][0])
+            pyautogui.keyUp(self.mapping.button['3'][1])
+            
+             
+            
         self.incoming = self.ser.read()
 
 
@@ -54,7 +75,7 @@ if __name__ == '__main__':
     interfaces = ['dummy', 'serial']
     argparse = argparse.ArgumentParser()
     argparse.add_argument('serial_port', type=str)
-    argparse.add_argument('-b', '--baudrate', type=int, default=9600)
+    argparse.add_argument('-b', '--baudrate', type=int, default=115200)
     argparse.add_argument('-c', '--controller_interface', type=str, default='serial', choices=interfaces)
     argparse.add_argument('-d', '--debug', default=False, action='store_true')
     args = argparse.parse_args()
