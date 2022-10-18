@@ -6,12 +6,25 @@ import logging
 
 class MyControllerMap:
     def __init__(self):
-        self.button = {'1': ['ctrl', 'left'], '2':'space', '3':['ctrl', 'right']} # Fast forward (10 seg) pro Youtube
+        self.first = True
+        self.initialBand = 0;
+        self.button = {'21': ['ctrl', 'left'], '22':'space', '23':['ctrl', 'right']} # Fast forward (10 seg) pro Youtube
+        self.acceptable = [b'\x00', b'\x01', b'\x02', b'\x03', b'\x04', b'\x05', b'\x06', b'\x07', b'\x08', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D', b'\x0E', b'\x0F', b'\x10' ]
 
 class SerialControllerInterface:
     # Protocolo
     # byte 1 -> Botão 1 (estado - Apertado 1 ou não 0)
     # byte 2 -> EOP - End of Packet -> valor reservado 'X'
+    
+    def control_volume(self, mult):
+        logging.info("KEYDOWN Control Left")
+        type = 'inc' if mult > 0 else 'dec';
+        for i in range(0,abs(mult)):
+            pyautogui.keyDown('ctrl')
+            pyautogui.keyDown('up' if type=='inc' else 'down')
+            pyautogui.keyUp('ctrl')
+            pyautogui.keyUp('up' if type=='inc' else 'down')
+        
 
     def __init__(self, port, baudrate):
         self.ser = serial.Serial(port, baudrate=baudrate)
@@ -28,34 +41,34 @@ class SerialControllerInterface:
         data = self.ser.read()
         logging.debug("Received DATA: {}".format(data))
 
-        # if data == b'1':
-        #     logging.info("KEYDOWN A")
-        #     pyautogui.keyDown(self.mapping.button['A'])
-        # elif data == b'0':
-        #     logging.info("KEYUP A")
-        #     pyautogui.keyUp(self.mapping.button['A'])
-
-        if (data == b'\x01'):
-            print("1\n")
+        if (data == b'\x15'):
+            # print("1\n")
             logging.info("KEYDOWN Control Left")
-            pyautogui.keyDown(self.mapping.button['1'][0])
-            pyautogui.keyDown(self.mapping.button['1'][1])
-            pyautogui.keyUp(self.mapping.button['1'][0])
-            pyautogui.keyUp(self.mapping.button['1'][1])
-        elif (data == b'\x02'):
-            print("2\n")
+            pyautogui.keyDown(self.mapping.button['21'][0])
+            pyautogui.keyDown(self.mapping.button['21'][1])
+            pyautogui.keyUp(self.mapping.button['21'][0])
+            pyautogui.keyUp(self.mapping.button['21'][1])
+        elif (data == b'\x16'):
+            # print("2\n")
             logging.info("KEYDOWN Space ")
-            pyautogui.press(self.mapping.button['2'])
-        elif (data == b'\x03'):
-            print("3\n")
+            pyautogui.press(self.mapping.button['22'])
+        elif (data == b'\x17'):
+            # print("3\n")
             logging.info("KEYDOWN Control Right")
-            pyautogui.keyDown(self.mapping.button['3'][0])
-            pyautogui.keyDown(self.mapping.button['3'][1])
-            pyautogui.keyUp(self.mapping.button['3'][0])
-            pyautogui.keyUp(self.mapping.button['3'][1])
-            
-             
-            
+            pyautogui.keyDown(self.mapping.button['23'][0])
+            pyautogui.keyDown(self.mapping.button['23'][1])
+            pyautogui.keyUp(self.mapping.button['23'][0])
+            pyautogui.keyUp(self.mapping.button['23'][1])
+        elif data in self.mapping.acceptable:
+            newBand =  self.mapping.acceptable.index(data)
+            if self.mapping.first:
+                self.control_volume(newBand*-1)
+                self.mapping.first= False
+            elif (newBand != self.mapping.initialBand):
+                mult = newBand-self.mapping.initialBand;
+                self.mapping.initialBand = newBand;
+                self.control_volume(mult)
+ 
         self.incoming = self.ser.read()
 
 

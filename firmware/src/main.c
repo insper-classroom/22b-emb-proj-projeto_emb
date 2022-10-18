@@ -411,7 +411,10 @@ static void task_adc(void *pvParameters){
 					s+= v[j];
 				}
 				m = s/10;
-				printf("Media: %d\n", m);
+				if(i==9){
+					BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+					xQueueSendFromISR(xQueueMean, &m, xHigherPriorityTaskWoken);
+				}
 			}
 		}
 	}
@@ -429,11 +432,32 @@ void task_bluetooth(void) {
 	char button1 = '0';
 	char eof = 'X';
 	int data;
+	int mean;
 
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
 		if(onFlag){ //caso botao vermelho ja clicado
+				
+				
+			if(xQueueReceive(xQueueMean, &mean, 50)){
+				printf("Media: %d\n", mean);
+				int band = mean/229;
+				printf("Banda: %d\n", band);
+				while(!usart_is_tx_ready(USART_COM)) {
+					vTaskDelay(10 / portTICK_PERIOD_MS);
+				}
+				
+				//esses while podem ficar fora da fila?
+				usart_write(USART_COM, band);
+				
+				// envia fim de pacote
+				while(!usart_is_tx_ready(USART_COM)) {
+					vTaskDelay(10 / portTICK_PERIOD_MS);
+				}
+				usart_write(USART_COM, eof);
+			}
+			
 			if(xQueueReceive(xQueueBut, &data, 50)){ //dados recebidos dos botoes clicados
 				// envia status botão
 				printf("data btn: %d\n", data);
@@ -443,7 +467,7 @@ void task_bluetooth(void) {
 				}
 				
 				//esses while podem ficar fora da fila?
-				usart_write(USART_COM, data);
+				usart_write(USART_COM, data+20);
 				
 				// envia fim de pacote
 				while(!usart_is_tx_ready(USART_COM)) {
