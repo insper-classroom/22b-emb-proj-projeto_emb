@@ -40,9 +40,12 @@ class SerialControllerInterface:
 
         data = self.ser.read()
         logging.debug("Received DATA: {}".format(data))
+        print(data)
+        if (data== b'\x14'):
+            self.ser.write(b"z")
 
-        if (data == b'\x15'):
-            # print("1\n")
+        elif (data == b'\x15'):
+            # print("1\n") 
             logging.info("KEYDOWN Control Left")
             pyautogui.keyDown(self.mapping.button['21'][0])
             pyautogui.keyDown(self.mapping.button['21'][1])

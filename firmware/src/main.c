@@ -19,6 +19,12 @@
 #define LED_IDX      8
 #define LED_IDX_MASK (1 << LED_IDX)
 
+#define LED_PIO_1    PIOD
+#define LED_PIO_ID_1   ID_PIOD
+#define LED_IDX_1      22
+#define LED_IDX_1_MASK (1 << LED_IDX_1)
+
+
 // Botão
 #define BUT_PIO      PIOA
 #define BUT_PIO_ID   ID_PIOA
@@ -89,7 +95,8 @@ QueueHandle_t xQueueBut;
 QueueHandle_t xQueueADC;
 QueueHandle_t xQueueMean;
 SemaphoreHandle_t xSemaphoreOnOff;
-volatile int onFlag = 0;
+SemaphoreHandle_t xSemaphoreHandshake;
+
 typedef struct{
 	uint value;
 } adcData;
@@ -131,31 +138,20 @@ extern void vApplicationMallocFailedHook(void) {
 void but_azul_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 1;
-	if(onFlag){
-		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
-	}
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
 }
 void but_verde_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 2;
-	if(onFlag){
-		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
-	}
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
 }
 void but_amarelo_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int id = 3;
-	if(onFlag){
-		xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
-	}
+	xQueueSendFromISR(xQueueBut, &id, xHigherPriorityTaskWoken);
 }
 void but_vermelho_callback(void){
-	if(onFlag){
-		pio_set(LED_PIO, LED_IDX_MASK);
-	}else{
-		pio_clear(LED_PIO, LED_IDX_MASK);
-	}
-	onFlag = !onFlag;
+	xSemaphoreGiveFromISR(xSemaphoreOnOff, 0);
 }
 
 static void AFEC_pot_callback(void) {
@@ -180,8 +176,11 @@ void io_init(void) {
 	WDT->WDT_MR = WDT_MR_WDDIS;
 	// Ativa LEDs
 	pmc_enable_periph_clk(LED_PIO_ID);
+	pmc_enable_periph_clk(LED_PIO_ID_1);
 	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT);
 	pio_set_output(LED_PIO, LED_IDX_MASK, 0,0,0);
+	pio_configure(LED_PIO_1, PIO_OUTPUT_0, LED_IDX_1_MASK, PIO_DEFAULT);
+	pio_set_output(LED_PIO_1, LED_IDX_1_MASK, 0,0,0);
 	
 	//Config Btns
 	// Inicializa dos botoes do display;
@@ -399,24 +398,23 @@ static void task_adc(void *pvParameters){
 	int m;
 	
 	while(1){
-		if(onFlag){
-			if(xQueueReceive(xQueueADC, &(adc), 10)){ //dados recebidos do afec
-				if(i==9){
-					i=0;
-				}
-				v[i] = adc.value;
-				i++;
-				s = 0;
-				for (int j =0; j<10;j++){
-					s+= v[j];
-				}
-				m = s/10;
-				if(i==9){
-					BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-					xQueueSendFromISR(xQueueMean, &m, xHigherPriorityTaskWoken);
-				}
+		if(xQueueReceive(xQueueADC, &(adc), 10)){ //dados recebidos do afec
+			if(i==9){
+				i=0;
+			}
+			v[i] = adc.value;
+			i++;
+			s = 0;
+			for (int j =0; j<10;j++){
+				s+= v[j];
+			}
+			m = s/10;
+			if(i==9){
+				BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+				xQueueSendFromISR(xQueueMean, &m, xHigherPriorityTaskWoken);
 			}
 		}
+		
 	}
 }
 
@@ -428,8 +426,12 @@ void task_bluetooth(void) {
 	hc05_init();
 	io_init();
 	pio_set(LED_PIO, LED_IDX_MASK);
+	pio_set(LED_PIO_1, LED_IDX_1_MASK);
 	
 	char button1 = '0';
+	int onFlag = 0;
+	char handshakeOk;
+	char handShakeNum = 'z';
 	char eof = 'X';
 	int data;
 	int mean;
@@ -437,9 +439,17 @@ void task_bluetooth(void) {
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
+		
+		if(xSemaphoreTake(xSemaphoreOnOff, 10)){
+			printf("VOLTOU");
+			onFlag=!onFlag;
+			onFlag?pio_clear(LED_PIO, LED_IDX_MASK):pio_set(LED_PIO, LED_IDX_MASK);
+				
+			
+		}
+		
 		if(onFlag){ //caso botao vermelho ja clicado
-				
-				
+					
 			if(xQueueReceive(xQueueMean, &mean, 50)){
 				printf("Media: %d\n", mean);
 				int band = mean/229;
@@ -477,9 +487,9 @@ void task_bluetooth(void) {
 
 				// dorme por 500 ms
 				//vTaskDelay(500 / portTICK_PERIOD_MS);
-				pio_set(LED_PIO, LED_IDX_MASK);
-				delay_ms(200);
-				pio_clear(LED_PIO, LED_IDX_MASK);
+ 				pio_clear(LED_PIO_1, LED_IDX_1_MASK);
+ 				delay_ms(200);
+ 				pio_set(LED_PIO_1, LED_IDX_1_MASK);
 			}
 		}
 	}
@@ -498,6 +508,11 @@ int main(void) {
 	xSemaphoreOnOff = xSemaphoreCreateBinary();
 	if(xSemaphoreOnOff == NULL){
 		printf("Falha ao criar semaforo on off");
+	}
+	
+	xSemaphoreHandshake = xSemaphoreCreateBinary();
+	if(xSemaphoreHandshake == NULL){
+		printf("Falha ao criar semaforo handshake");
 	}
 	
 	xQueueBut = xQueueCreate(32, sizeof(int));
