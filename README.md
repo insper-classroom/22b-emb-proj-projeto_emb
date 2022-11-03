@@ -6,48 +6,48 @@ Desenvolvendo um controle remoto.
 
 ### Integrantes
 
-- Nome1
-- Nome2
+- Ricardo Israel
+- Rodrigo Mattar
 
 ### Ideia
 
-<!--  Descreva aqui em poucas palavras qual a ideia do seu controle. Se ele vai ser de jogo ou de aplicação -->
+A ideia é criar um controle que seja aplicavel ao spotify, com botoes de play/pause, passar a musica, recomecar/voltar uma musica e um potenciometro para controlar o volume
 
 ### Nome
 
-<!-- De um nome ao seu controle! -->
+Controlify
 
 ### Usuários 
 
-<!-- Descreva aqui quem seriam os possíveis usuários deste controle. -->
+Todos que ultilizam um aplicativo de streming de musica (spotify).
 
 ### Software/Jogo 
 
-<!-- Qual software que seu controle vai controlar? -->
+Spotify
 
 ### Jornada do usuários (3 pts)
 
-<!-- Descreva ao menos duas jornadas de usuários distintos, é para caprichar! -->
+(1) - Um usuario  chega em casa e quer ouvir uma musica, ele pega o controle e aperta o play. 
+(2) - Um usario precisa falar com alguem, entao ele usa o potenciometro para abaixar o volume da musica. Mesmo assim nao conseguiu prestar atencao entao usa o 
+botao de play/pause para pausar a musica.
 
 ### Comandos/ Feedbacks (2 pts)
-
-<!-- 
-Quais são os comandos/ operacões possíveis do seu controle?
-
+On/Off, Play/Paulse, Passar para proxima Musica, recomecar ou voltar a musica anterior, aumentar/diminir o volume
+ 
 Quais os feedbacks que seu controle vai fornecer ao usuário?
--->
+Um led que fica aceso enquanto o controle esta ligado e um outro led que pisca a cada botao clicado.
+
 
 ## In/OUT (3 pts)
 
-<!--
 Para cada Comando/ Feedback do seu controle, associe qual sensores/ atuadores pretende utilizar? Faca em formato de lista, exemplo:
 
-- Avanca música: Push button amarelo
-- Volume da música: Fita de LED indicando potência do som
--->
+- On/OFF: Push botao amarelo
+- Play/Pause: Push botao vermelho
+- Avanca música: Push botao verde
+- recomeca a musica: Push botao azul
+- Voltar uma musica: Push 2 vezes botao azul
 
 ### Design (2 pts)
 
-<!--
-Faca um esboco de como seria esse controle (vai ter uma etapa que terão que detalhar melhor isso).
--->
+![](Controle.jpeg)
